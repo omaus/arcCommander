@@ -306,3 +306,8 @@ module IniData =
         | Some ini -> ini
         | None -> addValue name value iniData
         |> toFile path
+
+    /// Sets the given value for the key in the ini file, overwriting a possibly existing value.
+    let tryGetValueInIniPath path name = 
+        let iniData = path |> fromFile
+        tryGetValueByName name iniData
