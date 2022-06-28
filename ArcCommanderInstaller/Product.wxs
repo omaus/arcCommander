@@ -34,7 +34,7 @@
         <RemoveFolder Id="RemoveManufacturerFolder" Directory="ManufacturerFolder" On="uninstall" />
         <RemoveFolder Id="RemoveINSTALLFOLDER" Directory="INSTALLFOLDER" On="uninstall" />
         
-        <RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]\arc.exe"
+        <RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]arc.exe"
                        Value="[INSTALLFOLDER]arc.exe"
                        Name="Path"
                        Type="string"
