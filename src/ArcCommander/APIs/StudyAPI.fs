@@ -869,32 +869,21 @@ module StudyAPI =
 
             let studyIdentifier = getFieldValueByName "StudyIdentifier" personArgs
 
+            let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
 
+            let study = StudyFile.Study.fromFile studyFilepath
 
-            // COMMENT: Deprecated. Person information from Study file has higher priority and shall be displayed instead.
-
-            //let investigationFilePath = IsaModelConfiguration.tryGetInvestigationFilePath arcConfiguration |> Option.get
-            
-            //let investigation = Investigation.fromFile investigationFilePath
-
-            //match investigation.Studies with
-            //| Some studies -> 
-            //    match API.Study.tryGetByIdentifier studyIdentifier studies with
-            //    | Some study -> 
-            //        match study.Contacts with
-            //        | Some persons -> 
-            //            match API.Person.tryGetByFullName firstName midInitials lastName persons with
-            //            | Some person ->
-            //                [person]
-            //                |> Prompt.serializeXSLXWriterOutput (Contacts.toRows None)
-            //                |> log.Debug
-            //            | None -> log.Error($"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}.")
-            //        | None -> 
-            //            log.Error($"The study with the identifier {studyIdentifier} does not contain any persons.")
-            //    | None -> 
-            //        log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
-            //| None -> 
-            //    log.Error("The investigation does not contain any studies.")
+            match study.Contacts with
+            | Some contacts ->
+                match API.Person.tryGetByFullName firstName midInitials lastName contacts with
+                | Some contact -> 
+                    contact
+                    |> List.singleton
+                    |> Prompt.serializeXSLXWriterOutput (Contacts.toRows None)
+                    |> log.Debug
+                | None ->
+                    log.Error $"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}."
+            | None -> log.Error $"The study with the identifier {studyIdentifier} does not contain any persons."
 
 
         /// Lists the full names of all persons included in the investigation.
