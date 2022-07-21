@@ -929,7 +929,7 @@ module StudyAPI =
             
             log.Info("Start Publication update")
 
-            let updateOption = if containsFlag "ReplaceWithEmptyValues" publicationArgs then API.Update.UpdateAll else API.Update.UpdateByExisting            
+            let updateOption = if containsFlag "ReplaceWithEmptyValues" publicationArgs then API.Update.UpdateAll else API.Update.UpdateByExisting
 
             let doi = getFieldValueByName  "DOI"                        publicationArgs
 

@@ -127,6 +127,8 @@ module AssayAPI =
             
         finally Spreadsheet.close doc
 
+        log.Info "Writing into Study file"
+
         // write assay metadata into the study file
         let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
         
@@ -361,6 +363,24 @@ module AssayAPI =
             [Study.fromParts info [] [] [] [assay] [] []]
         |> API.Investigation.setStudies investigation
         |> Investigation.toFile investigationFilePath
+
+        // part that writes into Study file:
+
+        let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
+        
+        let study = StudyFile.Study.fromFile studyFilepath
+
+        let studyDoc = Spreadsheet.fromFile studyFilepath true
+
+        try 
+            match study.Assays with
+            | Some assays ->
+                API.Assay.add assays assay
+            | None -> [assay]
+            |> API.Study.setAssays study
+            |> fun s -> StudyFile.MetaData.overwriteWithStudyInfo "Study" s studyDoc
+
+        finally Spreadsheet.close studyDoc
     
     /// Creates a new assay file and associated folder structure in the ARC and registers it in the ARC's investigation file with the given assay metadata contained in assayArgs.
     let add (arcConfiguration : ArcConfiguration) (assayArgs : Map<string,Argument>) =
@@ -415,6 +435,25 @@ module AssayAPI =
             log.Error($"The investigation does not contain any studies.")
             investigation
         |> Investigation.toFile investigationFilePath
+
+        // part that writes into Study file:
+
+        let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
+        
+        let study = StudyFile.Study.fromFile studyFilepath
+
+        let studyDoc = Spreadsheet.fromFile studyFilepath true
+
+        try 
+            match study.Assays with
+            | Some assays ->
+                API.Assay.removeByFileName assayIdentifier assays
+            | None -> []
+            |> API.Study.setAssays study
+            |> fun s -> StudyFile.MetaData.overwriteWithStudyInfo "Study" s studyDoc
+
+        finally Spreadsheet.close studyDoc
+
     
     /// Deletes an assay's folder and underlying file structure from the ARC.
     let delete (arcConfiguration : ArcConfiguration) (assayArgs : Map<string,Argument>) =
@@ -462,7 +501,7 @@ module AssayAPI =
             log.Info "Run the command with `--force` to force deletion."
 
 
-    /// Remove an assay from the ARC by both unregistering it from the investigation file and removing its folder with the underlying file structure.
+    /// Removes an assay from the ARC by both unregistering it from the investigation file and removing its folder with the underlying file structure.
     let remove (arcConfiguration : ArcConfiguration) (assayArgs : Map<string,Argument>) =
         unregister arcConfiguration assayArgs
         delete arcConfiguration assayArgs
@@ -478,10 +517,14 @@ module AssayAPI =
         let assayFileName = IsaModelConfiguration.tryGetAssayFileName assayIdentifier arcConfiguration |> Option.get
 
         let studyIdentifier = getFieldValueByName "StudyIdentifier" assayArgs
-        let targetStudyIdentifer = getFieldValueByName "TargetStudyIdentifier" assayArgs
+        let targetStudyIdentifier = getFieldValueByName "TargetStudyIdentifier" assayArgs
 
         let investigationFilePath = IsaModelConfiguration.tryGetInvestigationFilePath arcConfiguration |> Option.get      
         let investigation = Investigation.fromFile investigationFilePath
+
+        // part that writes into Investigation file
+
+        log.Info "Write into Investigation file"
         
         match investigation.Studies with
         | Some studies -> 
@@ -495,14 +538,14 @@ module AssayAPI =
                             // Remove Assay from old study
                             API.Study.mapAssays (API.Assay.removeByFileName assayFileName) study
                             |> fun s -> API.Study.updateByIdentifier API.Update.UpdateAll s studies
-                        match API.Study.tryGetByIdentifier targetStudyIdentifer studies with
+                        match API.Study.tryGetByIdentifier targetStudyIdentifier studies with
                         | Some targetStudy -> 
                             API.Study.mapAssays (fun assays -> API.Assay.add assays assay) targetStudy
                             |> fun s -> API.Study.updateByIdentifier API.Update.UpdateAll s studies
                             |> API.Investigation.setStudies investigation
                         | None -> 
                             log.Trace($"Target Study with the identifier {studyIdentifier} does not exist in the investigation file, creating new study to move assay to.")
-                            let info = Study.StudyInfo.create targetStudyIdentifer "" "" "" "" (IsaModelConfiguration.getStudyFileName studyIdentifier arcConfiguration) []
+                            let info = Study.StudyInfo.create targetStudyIdentifier "" "" "" "" (IsaModelConfiguration.getStudyFileName studyIdentifier arcConfiguration) []
                             Study.fromParts info [] [] [] [assay] [] []
                             |> API.Study.add studies
                             |> API.Investigation.setStudies investigation
@@ -516,9 +559,85 @@ module AssayAPI =
                 log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
                 investigation
         | None -> 
-            log.Error($"The investigation does not contain any studies.")
+            log.Error "The investigation does not contain any studies."
             investigation
         |> Investigation.toFile investigationFilePath
+
+        // part that writes into old Study file:
+
+        log.Info "Write into previous Study file"
+
+        let oldStudyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
+        
+        let oldStudy = StudyFile.Study.fromFile oldStudyFilepath
+
+        // if Study is empty, try getting Assay information from Investigation
+        let backUpProcedure () = 
+            // Warn message shall come from getting Assay part
+            match investigation.Studies with
+            | None -> 
+                log.Error "The investigation does not contain any studies."
+                raise <| Exception ""
+            | Some studies -> 
+                match API.Study.tryGetByIdentifier studyIdentifier studies with
+                | None ->
+                    log.Error $"Study with the identifier {studyIdentifier} does not exist in the investigation file."
+                    raise <| Exception ""
+                | Some study -> 
+                    match study.Assays with
+                    | None ->
+                        log.Error $"The study with the identifier {studyIdentifier} does not contain any assays."
+                        raise <| Exception ""
+                    | Some assays -> 
+                        match API.Assay.tryGetByFileName assayFileName assays with
+                        | None -> 
+                            log.Error $"Assay with the identifier {assayIdentifier} does not exist in the study with the identifier {studyIdentifier}."
+                            raise <| Exception ""
+                        | Some assay -> assay
+
+        let assay = 
+            match oldStudy.Assays with
+            | None -> 
+                log.Warn $"The study with the identifier {studyIdentifier} does not contain any assays."
+                backUpProcedure ()
+            | Some assays -> 
+                match API.Assay.tryGetByFileName assayFileName assays with
+                | None -> 
+                    log.Warn $"Assay with the identifier {assayIdentifier} does not exist in the study with the identifier {studyIdentifier}."
+                    backUpProcedure ()
+                | Some assay -> assay
+
+        let oldStudyDoc = Spreadsheet.fromFile oldStudyFilepath true
+
+        try 
+            match oldStudy.Assays with
+            | Some assays ->
+                API.Assay.removeByFileName assayFileName assays
+            | None -> []
+            |> API.Study.setAssays oldStudy
+            |> fun s -> StudyFile.MetaData.overwriteWithStudyInfo "Study" s oldStudyDoc
+
+        finally Spreadsheet.close oldStudyDoc
+
+        // part that writes into new Study file:
+
+        log.Info "Write into new Study file"
+
+        let newStudyFilePath = IsaModelConfiguration.getStudyFilePath targetStudyIdentifier arcConfiguration
+        
+        let newStudy = StudyFile.Study.fromFile newStudyFilePath
+
+        let newStudyDoc = Spreadsheet.fromFile newStudyFilePath true
+
+        try
+            match newStudy.Assays with
+            | Some assays ->
+                API.Assay.add assays assay
+            | None -> [assay]
+            |> API.Study.setAssays newStudy
+            |> fun s -> StudyFile.MetaData.overwriteWithStudyInfo "Study" s newStudyDoc
+
+        finally Spreadsheet.close newStudyDoc
 
     /// Moves an assay file from one study group to another (provided by assayArgs).
     let show (arcConfiguration : ArcConfiguration) (assayArgs : Map<string,Argument>) =
