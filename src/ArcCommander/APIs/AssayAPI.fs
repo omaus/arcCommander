@@ -447,7 +447,7 @@ module AssayAPI =
         try 
             match study.Assays with
             | Some assays ->
-                API.Assay.removeByFileName assayIdentifier assays
+                API.Assay.removeByFileName assayFileName assays
             | None -> []
             |> API.Study.setAssays study
             |> fun s -> StudyFile.MetaData.overwriteWithStudyInfo "Study" s studyDoc
