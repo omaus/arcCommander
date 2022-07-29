@@ -446,8 +446,7 @@ module AssayAPI =
 
         try 
             match study.Assays with
-            | Some assays ->
-                API.Assay.removeByFileName assayFileName assays
+            | Some assays -> API.Assay.removeByFileName assayFileName assays
             | None -> []
             |> API.Study.setAssays study
             |> fun s -> StudyFile.MetaData.overwriteWithStudyInfo "Study" s studyDoc
@@ -983,7 +982,7 @@ module AssayAPI =
 
             log.Info("Start Person Update")
 
-            let updateOption = if containsFlag "ReplaceWithEmptyValues" personArgs then API.Update.UpdateAll else API.Update.UpdateByExisting            
+            let updateOption = if containsFlag "ReplaceWithEmptyValues" personArgs then API.Update.UpdateAll else API.Update.UpdateByExisting
 
             let lastName    = getFieldValueByName "LastName"    personArgs
             let firstName   = getFieldValueByName "FirstName"   personArgs
