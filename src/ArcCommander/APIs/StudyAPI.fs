@@ -859,9 +859,39 @@ module StudyAPI =
             let firstName   = (getFieldValueByName "FirstName"      personArgs)
             let midInitials = (getFieldValueByName "MidInitials"    personArgs)
 
+            let investigationFilePath = IsaModelConfiguration.tryGetInvestigationFilePath arcConfiguration |> Option.get
+            
+            let investigation = Investigation.fromFile investigationFilePath
+
             let studyIdentifier = getFieldValueByName "StudyIdentifier" personArgs
 
+            log.Info "Checking Investigation file"
+
+            let personOfInvFile = 
+                match investigation.Studies with
+                | Some studies -> 
+                    match API.Study.tryGetByIdentifier studyIdentifier studies with
+                    | Some study -> 
+                        match study.Contacts with
+                        | Some persons -> 
+                            match API.Person.tryGetByFullName firstName midInitials lastName persons with
+                            | Some contact -> Some contact
+                            | None -> 
+                                log.Error $"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}."
+                                None
+                        | None -> 
+                            log.Error($"The study with the identifier {studyIdentifier} does not contain any persons.")
+                            None
+                    | None -> 
+                        log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
+                        None
+                | None -> 
+                    log.Error("The investigation does not contain any studies.")
+                    None
+
             let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
+
+            log.Info "Checking Study file"
 
             let study = StudyFile.Study.fromFile studyFilepath
 
@@ -869,10 +899,21 @@ module StudyAPI =
             | Some contacts ->
                 match API.Person.tryGetByFullName firstName midInitials lastName contacts with
                 | Some contact -> 
-                    contact
-                    |> List.singleton
-                    |> Prompt.serializeXSLXWriterOutput (Contacts.toRows None)
-                    |> log.Debug
+                    let printStudyPerson () =
+                        contact
+                        |> List.singleton
+                        |> Prompt.serializeXSLXWriterOutput (Contacts.toRows None)
+                        |> log.Debug
+                    match personOfInvFile with
+                    | Some poif ->
+                        if contact <> poif then 
+                            log.Warn $"Person with the name {firstName} {midInitials} {lastName} differs between Investigation and Study file."
+                            let poifSer = 
+                                List.singleton personOfInvFile.Value
+                                |> Prompt.serializeXSLXWriterOutput (Contacts.toRows None)
+                            log.Debug $"Person in Investigation file:\n{poifSer}\n\nPerson in Study file:"
+                            printStudyPerson ()
+                    | None -> printStudyPerson ()
                 | None ->
                     log.Error $"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}."
             | None -> log.Error $"The study with the identifier {studyIdentifier} does not contain any persons."
@@ -889,27 +930,56 @@ module StudyAPI =
             
             let investigation = Investigation.fromFile investigationFilePath
 
-            match investigation.Studies with
-            | Some studies -> 
-                studies
-                |> Seq.iter (fun study ->
-                    match study.Contacts with
-                    | Some persons -> 
-                        log.Debug(sprintf "Study: %s" (Option.defaultValue "" study.Identifier))
-                        persons 
-                        |> Seq.iter (fun person -> 
-                            let firstName = Option.defaultValue "" person.FirstName
-                            let midInitials = Option.defaultValue "" person.MidInitials
-                            let lastName = Option.defaultValue "" person.LastName
-                            if midInitials = "" then
-                                log.Debug($"--Person: {firstName} {lastName}")
-                            else
-                                log.Debug($"--Person: {firstName} {midInitials} {lastName}")
-                        )
-                    | None -> ()
+            let investigationPersons =
+                match investigation.Studies with
+                | Some studies -> 
+                    studies
+                    |> Seq.map (fun study -> study.Identifier, study.Contacts)
+                    |> Some
+                | None -> 
+                    log.Error("The investigation does not contain any studies.")
+                    None
+
+            let printSc sc =
+                sc
+                |> Seq.iter (fun person -> 
+                    let firstName = Option.defaultValue "" person.FirstName
+                    let midInitials = Option.defaultValue "" person.MidInitials
+                    let lastName = Option.defaultValue "" person.LastName
+                    if midInitials = "" then log.Debug($"--Person: {firstName} {lastName}")
+                    else log.Debug($"--Person: {firstName} {midInitials} {lastName}")
                 )
-            | None -> 
-                log.Error("The investigation does not contain any studies.")
+
+            match investigationPersons with
+            | None -> ()
+            | Some invPers ->
+                invPers
+                |> Seq.iter (
+                    fun (studyID,studyContacts) ->
+                        match studyID with
+                        | Some sid ->
+                            let studyFilepath = IsaModelConfiguration.getStudyFilePath sid arcConfiguration
+                            let study = StudyFile.Study.fromFile studyFilepath
+                            match study.Contacts, studyContacts with
+                            | Some ssc, Some isc ->
+                                if ssc <> isc then 
+                                    log.Warn $"Persons in Study {sid} differ between Study file and Investigation file."
+                                    log.Debug "Persons in Investigation file:"
+                                    printSc isc
+                                    log.Debug "\nPersons in Study file:"
+                                    printSc ssc
+                                else printSc ssc
+                            | None, Some isc ->
+                                log.Warn $"Persons in Study {sid} are not present in Study file but in Investigation file"
+                                log.Debug "Persons in Investigation file:"
+                                printSc isc
+                            | Some ssc, None ->
+                                log.Warn $"Persons in Study {sid} are not present in Investigation file but in Study file"
+                                log.Debug "Persons in Study file:"
+                                printSc ssc
+                            | None, None -> log.Info $"Study {sid} does not contain any persons."
+                        | None -> ()
+                )
 
     /// Functions for altering investigation Publications.
     module Publications =
