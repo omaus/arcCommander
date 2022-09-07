@@ -741,20 +741,12 @@ module StudyAPI =
                     finally Spreadsheet.close oldStudyFile
 
             | None -> 
-
-                let msg = $"The study with the identifier {studyIdentifier} does not contain any persons."
-                if containsFlag "AddIfMissing" personArgs then
-                    log.Warn($"{msg}")
-                    log.Info("Registering person as AddIfMissing Flag was set.")
                     
-                    let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                let oldStudyFile = Spreadsheet.fromFile studyFilepath true
 
-                    try StudyFile.MetaData.overwriteWithStudyInfo "Study" ([person] |> API.Study.setContacts oldStudy) oldStudyFile
+                try StudyFile.MetaData.overwriteWithStudyInfo "Study" ([person] |> API.Study.setContacts oldStudy) oldStudyFile
 
-                    finally Spreadsheet.close oldStudyFile
-                else 
-                    log.Error($"{msg}")
-                    log.Trace("AddIfMissing argument can be used to register person with the update command if it is missing.")
+                finally Spreadsheet.close oldStudyFile
 
             log.Info "Writing into Investigation file"
             

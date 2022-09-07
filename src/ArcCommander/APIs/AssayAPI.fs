@@ -896,8 +896,7 @@ module AssayAPI =
                             match study.Assays with
                             | Some assays -> 
                                 match API.Assay.tryGetByFileName assayFileName assays with
-                                | Some assay ->
-                                    Some assay
+                                | Some assay -> Some assay
                                 | None -> 
                                     log.Error($"Assay with the identifier {assayIdentifier} does not exist in the study with the identifier {studyIdentifier}.")
                                     None
@@ -945,7 +944,7 @@ module AssayAPI =
                     |> Option.defaultValue [] 
                     |> List.collect (fun a -> a.ProcessSequence |> Option.defaultValue [])
                 )
-                                                          
+
             match tryGetFieldValueByName "Output" assayArgs with
             | Some p -> ArgumentProcessing.serializeToFile p output
             | None -> ()
@@ -972,7 +971,7 @@ module AssayAPI =
         | None -> exportAllAssays arcConfiguration assayArgs
 
 
-    /// Functions for altering investigation contacts
+    /// Functions for altering Assay performers.
     module Contacts =
 
         /// Updates an existing person in this assay with the given person metadata contained in cliArgs.
