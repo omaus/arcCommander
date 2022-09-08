@@ -652,7 +652,7 @@ module StudyAPI =
                         | Some person -> 
                             match oldStudyPerson with
                             | None -> ()
-                            | Some osp -> if osp <> person then $"Person {firstName} {midInitials} {lastName} differs between Investigation file and Study file."
+                            | Some osp -> if osp <> person then log.Warn $"Person {firstName} {midInitials} {lastName} differs between Investigation file and Study file."
                             API.Study.updateByIdentifier API.Update.UpdateAll newStudy studies
                             |> API.Investigation.setStudies investigation
             |> Investigation.toFile investigationFilePath
@@ -1203,8 +1203,6 @@ module StudyAPI =
                 investigation
             |> Investigation.toFile investigationFilePath
 
-            let studyIdentifier = getFieldValueByName "StudyIdentifier" publicationArgs
-
             let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
 
             let oldStudy = StudyFile.Study.fromFile studyFilepath
@@ -1267,6 +1265,27 @@ module StudyAPI =
                             log.Error($"Publication with the DOI {doi} does not exist in the study with the identifier {studyIdentifier}.")
                             investigation
             |> Investigation.toFile investigationFilePath
+
+            let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
+
+            let oldStudy = StudyFile.Study.fromFile studyFilepath
+
+            log.Info "Write into Study file"
+
+            // write into Study file
+            match oldStudy.Publications with
+            | None -> log.Error($"The study with the identifier {studyIdentifier} does not contain any publications.")
+            | Some publications ->
+                let newStudy = 
+                    if API.Publication.existsByDoi doi publications then
+                        API.Publication.removeByDoi doi publications
+                        |> API.Study.setPublications oldStudy
+                    else
+                        log.Error($"Publication with the DOI {doi} does not exist in the study with the identifier {studyIdentifier}.")
+                        oldStudy
+                let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
+                finally Spreadsheet.close oldStudyFile
 
         /// Gets an existing publication by DOI from the ARC investigation study and prints its metadata.
         let show (arcConfiguration : ArcConfiguration) (publicationArgs : Map<string,Argument>) =
