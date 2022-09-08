@@ -703,7 +703,7 @@ module StudyAPI =
                 try StudyFile.MetaData.overwriteWithStudyInfo "Study" ([person] |> API.Study.setContacts oldStudy) oldStudyFile
                 finally Spreadsheet.close oldStudyFile
             | Some persons ->
-                if API.Person.existsByFullName firstName midInitials lastName persons then log.Info($"Person with the name {firstName} {midInitials} {lastName} already exists in the investigation file.")
+                if API.Person.existsByFullName firstName midInitials lastName persons then log.Info($"Person with the name {firstName} {midInitials} {lastName} already exists in the Study file.")
                 else 
                     let oldStudyFile = Spreadsheet.fromFile studyFilepath true
                     try StudyFile.MetaData.overwriteWithStudyInfo "Study" (API.Person.add persons person |> API.Study.setContacts oldStudy) oldStudyFile
@@ -762,24 +762,16 @@ module StudyAPI =
             // write into Study file
             match oldStudy.Contacts with
             | Some persons ->
-
                 if API.Person.existsByFullName firstName midInitials lastName persons then
                     let oldStudyFile = Spreadsheet.fromFile studyFilepath true
-                    
                     let newStudy =
                         API.Person.removeByFullName firstName midInitials lastName persons
                         |> API.Study.setContacts oldStudy
-
                     try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
-
                     finally Spreadsheet.close oldStudyFile
-
                 else log.Error($"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}.")
+            | None -> log.Error $"The study with the identifier {studyIdentifier} does not contain any persons."
 
-            | None -> 
-
-                log.Error $"The study with the identifier {studyIdentifier} does not contain any persons."
-            
             log.Info "Writing into Investigation file"
 
             // write into Investigation file
@@ -1166,27 +1158,25 @@ module StudyAPI =
 
             // write into Investigation file
             match investigation.Studies with
+            | None -> 
+                log.Error("The investigation does not contain any studies.")
+                investigation
             | Some studies -> 
                 match API.Study.tryGetByIdentifier studyIdentifier studies with
+                | None ->
+                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
+                    investigation
                 | Some study -> 
                     match study.Publications with
+                    | None -> [publication]
                     | Some publications -> 
                         if API.Publication.existsByDoi doi publications then
                             log.Error($"Publication with the DOI {doi} already exists in the study with the identifier {studyIdentifier}.")
                             publications
-                        else
-                            API.Publication.add publications publication
-                    | None ->
-                        [publication]
+                        else API.Publication.add publications publication
                     |> API.Study.setPublications study
                     |> fun s -> API.Study.updateByIdentifier API.Update.UpdateAll s studies
                     |> API.Investigation.setStudies investigation
-                | None ->
-                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
-                    investigation
-            | None -> 
-                log.Error("The investigation does not contain any studies.")
-                investigation
             |> Investigation.toFile investigationFilePath
 
             let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
@@ -1203,8 +1193,12 @@ module StudyAPI =
                 finally Spreadsheet.close oldStudyFile
             | Some publications ->
                 let newStudy = 
-                    API.Publication.add publications publication
-                    |> API.Study.setPublications oldStudy
+                    if API.Publication.existsByDoi doi publications then
+                        log.Error $"Publication with the DOI {doi} already exists in the Study with the identifier {studyIdentifier}."
+                        oldStudy
+                    else
+                        API.Publication.add publications publication
+                        |> API.Study.setPublications oldStudy
                 let oldStudyFile = Spreadsheet.fromFile studyFilepath true
                 try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
                 finally Spreadsheet.close oldStudyFile
@@ -1537,29 +1531,55 @@ module StudyAPI =
             
             let investigation = Investigation.fromFile investigationFilePath
 
+            log.Info "Write into Investigation file"
+
+            // write into Investigation file
             match investigation.Studies with
+            | None -> 
+                log.Error("The Investigation does not contain any Studies.")
+                investigation
             | Some studies -> 
                 match API.Study.tryGetByIdentifier studyIdentifier studies with
+                | None ->
+                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the Investigation file.")
+                    investigation
                 | Some study -> 
                     match study.StudyDesignDescriptors with
+                    | None -> [design]
                     | Some designs -> 
                         if API.OntologyAnnotation.existsByName (AnnotationValue.fromString name) designs then
-                            log.Error($"Design with the name {name} already exists in the study with the identifier {studyIdentifier}.")
+                            log.Error($"Design with the name {name} already exists in the Study with the identifier {studyIdentifier}.")
                             designs
-                        else
-                            API.OntologyAnnotation.add designs design
-                    | None -> 
-                        [design]
+                        else API.OntologyAnnotation.add designs design
                     |> API.Study.setDescriptors study
                     |> fun s -> API.Study.updateByIdentifier API.Update.UpdateAll s studies
                     |> API.Investigation.setStudies investigation
-                | None ->
-                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
-                    investigation
-            | None -> 
-                log.Error("The investigation does not contain any studies.")
-                investigation
             |> Investigation.toFile investigationFilePath
+
+            let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
+
+            let oldStudy = StudyFile.Study.fromFile studyFilepath
+
+            log.Info "Write into Study file"
+
+            // write into Study file
+            match oldStudy.StudyDesignDescriptors with
+            | None -> 
+                let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                try StudyFile.MetaData.overwriteWithStudyInfo "Study" ([design] |> API.Study.setDescriptors oldStudy) oldStudyFile
+                finally Spreadsheet.close oldStudyFile
+            | Some designs ->
+                let newStudy = 
+                    if API.OntologyAnnotation.existsByName (AnnotationValue.fromString name) designs then 
+                        log.Error $"Design with the name {name} already exists in the Study with the identifier {studyIdentifier}."
+                        oldStudy
+                    else 
+                        API.OntologyAnnotation.add designs design
+                        |> API.Study.setDescriptors oldStudy
+                let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
+                finally Spreadsheet.close oldStudyFile
+
 
         /// Opens an existing design by design type in the ARC investigation study with the text editor set in globalArgs.
         let unregister (arcConfiguration : ArcConfiguration) (designArgs : Map<string,Argument>) =
@@ -1577,12 +1597,21 @@ module StudyAPI =
             let investigation = Investigation.fromFile investigationFilePath
 
             match investigation.Studies with
+            | None -> 
+                log.Error("The Investigation does not contain any studies.")
+                investigation
             | Some studies -> 
                 match API.Study.tryGetByIdentifier studyIdentifier studies with
+                | None ->
+                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the Investigation file.")
+                    investigation
                 | Some study -> 
                     match study.StudyDesignDescriptors with
+                    | None -> 
+                        log.Error($"The Study with the identifier {studyIdentifier} does not contain any design descriptors.")
+                        investigation
                     | Some designs -> 
-                        if API.OntologyAnnotation.existsByName (AnnotationValue.fromString name) designs then           
+                        if API.OntologyAnnotation.existsByName (AnnotationValue.fromString name) designs then
                             API.OntologyAnnotation.removeByName (AnnotationValue.fromString name) designs
                             |> API.Study.setDescriptors study
                             |> fun s -> API.Study.updateByIdentifier API.Update.UpdateAll s studies
@@ -1590,15 +1619,6 @@ module StudyAPI =
                         else
                             log.Error($"Design with the name {name} does not exist in the study with the identifier {studyIdentifier}.")
                             investigation
-                    | None -> 
-                        log.Error($"The study with the identifier {studyIdentifier} does not contain any design descriptors.")
-                        investigation
-                | None ->
-                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
-                    investigation
-            | None -> 
-                log.Error("The investigation does not contain any studies.")
-                investigation
             |> Investigation.toFile investigationFilePath
 
         /// Gets an existing design by design type from the ARC investigation study and prints its metadata.
