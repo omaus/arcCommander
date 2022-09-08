@@ -917,18 +917,12 @@ module StudyAPI =
                 |> Seq.iter (
                     fun (studyID,studyContacts) ->
                         match studyID with
+                        | None -> ()
                         | Some sid ->
                             let studyFilepath = IsaModelConfiguration.getStudyFilePath sid arcConfiguration
                             let study = StudyFile.Study.fromFile studyFilepath
                             match study.Contacts, studyContacts with
-                            | Some ssc, Some isc ->
-                                if ssc <> isc then 
-                                    log.Warn $"Persons in Study {sid} differ between Study file and Investigation file."
-                                    log.Debug "Persons in Investigation file:"
-                                    printSc isc
-                                    log.Debug "\nPersons in Study file:"
-                                    printSc ssc
-                                else printSc ssc
+                            | None, None -> log.Info $"Study {sid} does not contain any persons."
                             | None, Some isc ->
                                 log.Warn $"Persons in Study {sid} are not present in Study file but in Investigation file"
                                 log.Debug "Persons in Investigation file:"
@@ -937,8 +931,15 @@ module StudyAPI =
                                 log.Warn $"Persons in Study {sid} are not present in Investigation file but in Study file"
                                 log.Debug "Persons in Study file:"
                                 printSc ssc
-                            | None, None -> log.Info $"Study {sid} does not contain any persons."
-                        | None -> ()
+                            | Some ssc, Some isc ->
+                                // not optimal: if the names are the same but some not printed information is different, you won't see this in the console output
+                                if ssc <> isc then 
+                                    log.Warn $"Persons in Study {sid} differ between Study file and Investigation file."
+                                    log.Debug "Persons in Investigation file:"
+                                    printSc isc
+                                    log.Debug "\nPersons in Study file:"
+                                    printSc ssc
+                                else printSc ssc
                 )
 
     /// Functions for altering investigation Publications.
@@ -1352,19 +1353,49 @@ module StudyAPI =
             
             let investigation = Investigation.fromFile investigationFilePath
 
-            match investigation.Studies with
-            | Some studies -> 
-                studies 
-                |> Seq.iter (fun study ->
-                    match study.Publications with
-                    | Some publications -> 
-                        log.Debug(sprintf "Study: %s" (Option.defaultValue "" study.Identifier))
-                        publications
-                        |> Seq.iter (fun publication -> log.Debug(sprintf "--Publication DOI: %s" (Option.defaultValue "" publication.DOI)))
-                    | None -> ()
+            let investigationPublications =
+                match investigation.Studies with
+                | Some studies -> 
+                    studies
+                    |> Seq.map (fun study -> study.Identifier, study.Publications)
+                    |> Some
+                | None -> 
+                    log.Error("The investigation does not contain any studies.")
+                    None
+
+            let printSp sp = sp |> Seq.iter (fun publication -> log.Debug(sprintf "--Publication DOI: %s" (Option.defaultValue "" publication.DOI)))
+
+            match investigationPublications with
+            | None -> ()
+            | Some invPubs ->
+                invPubs
+                |> Seq.iter (
+                    fun (studyID,studyPublications) ->
+                        match studyID with
+                        | None -> ()
+                        | Some sid ->
+                            let studyFilepath = IsaModelConfiguration.getStudyFilePath sid arcConfiguration
+                            let study = StudyFile.Study.fromFile studyFilepath
+                            match study.Publications, studyPublications with
+                            | None, None -> log.Info $"Study {sid} does not contain any publications."
+                            | None, Some isp ->
+                                log.Warn $"Publications in Study {sid} are not present in Study file but in Investigation file"
+                                log.Debug "Publications in Investigation file:"
+                                printSp isp
+                            | Some ssc, None ->
+                                log.Warn $"Publications in Study {sid} are not present in Investigation file but in Study file"
+                                log.Debug "Publications in Study file:"
+                                printSp ssc
+                            | Some ssp, Some isp ->
+                                // not optimal: if the DOIs are the same but some not printed information is different, you won't see this in the console output
+                                if ssp <> isp then 
+                                    log.Warn $"Publications in Study {sid} differ between Study file and Investigation file."
+                                    log.Debug "Publications in Investigation file:"
+                                    printSp isp
+                                    log.Debug "\nPublications in Study file:"
+                                    printSp ssp
+                                else printSp ssp
                 )
-            | None -> 
-                log.Error("The investigation does not contain any studies.")
 
 
     /// Functions for altering investigation Designs.
