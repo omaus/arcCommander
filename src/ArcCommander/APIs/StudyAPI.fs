@@ -1596,6 +1596,9 @@ module StudyAPI =
             
             let investigation = Investigation.fromFile investigationFilePath
 
+            log.Info "Write into Investigation file"
+
+            // write into Investigation file
             match investigation.Studies with
             | None -> 
                 log.Error("The Investigation does not contain any studies.")
@@ -1620,6 +1623,27 @@ module StudyAPI =
                             log.Error($"Design with the name {name} does not exist in the study with the identifier {studyIdentifier}.")
                             investigation
             |> Investigation.toFile investigationFilePath
+
+            let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
+
+            let oldStudy = StudyFile.Study.fromFile studyFilepath
+
+            log.Info "Write into Study file"
+
+            // write into Study file
+            match oldStudy.StudyDesignDescriptors with
+            | None -> log.Error($"The Study with the identifier {studyIdentifier} does not contain any designs.")
+            | Some designs ->
+                let newStudy = 
+                    if API.OntologyAnnotation.existsByName (AnnotationValue.fromString name) designs then
+                        API.OntologyAnnotation.removeByName (AnnotationValue.fromString name) designs
+                        |> API.Study.setDescriptors oldStudy
+                    else
+                        log.Error($"Design with the name {name} does not exist in the Study with the identifier {studyIdentifier}.")
+                        oldStudy
+                let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
+                finally Spreadsheet.close oldStudyFile
 
         /// Gets an existing design by design type from the ARC investigation study and prints its metadata.
         let show (arcConfiguration : ArcConfiguration) (designArgs : Map<string,Argument>) =

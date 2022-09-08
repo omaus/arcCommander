@@ -367,15 +367,16 @@ module AssayAPI =
         // part that writes into Study file:
 
         let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
-        
+
+        log.Trace $"studyFilepath is {studyFilepath}"
+
         let study = StudyFile.Study.fromFile studyFilepath
 
         let studyDoc = Spreadsheet.fromFile studyFilepath true
 
         try 
             match study.Assays with
-            | Some assays ->
-                API.Assay.add assays assay
+            | Some assays -> API.Assay.add assays assay
             | None -> [assay]
             |> API.Study.setAssays study
             |> fun s -> StudyFile.MetaData.overwriteWithStudyInfo "Study" s studyDoc
