@@ -604,16 +604,16 @@ module StudyAPI =
             log.Info "Writing into Study file"
 
             // define new study and write into Study file
-            let newStudy =
+            let oldStudyPerson, newStudy =
                 match oldStudy.Contacts with
                 | None -> 
                     log.Error($"The study with the identifier {studyIdentifier} does not contain any persons.")
-                    oldStudy
+                    None, oldStudy
                 | Some persons ->
                     match API.Person.tryGetByFullName firstName midInitials lastName persons with
                     | None -> 
                         log.Error($"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}.")
-                        oldStudy
+                        None, oldStudy
                     | Some person ->
                         let newStudy = 
                             ArgumentProcessing.Prompt.createIsaItemQuery editor
@@ -625,33 +625,36 @@ module StudyAPI =
                         let oldStudyFile = Spreadsheet.fromFile studyFilepath true
                         try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
                         finally Spreadsheet.close oldStudyFile
-                        newStudy
+                        Some person, newStudy
 
             log.Info "Writing into Investigation file"
             
             // write into Investigation file
             match investigation.Studies with
-            | Some studies -> 
-                match API.Study.tryGetByIdentifier studyIdentifier studies with
-                | Some study -> 
-                    match study.Contacts with
-                    | Some persons -> 
-                        match API.Person.tryGetByFullName firstName midInitials lastName persons with
-                        | Some person -> 
-                            API.Study.updateByIdentifier API.Update.UpdateAll newStudy studies
-                            |> API.Investigation.setStudies investigation
-                        | None ->
-                            log.Error($"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}.")
-                            investigation
-                    | None -> 
-                        log.Error($"The study with the identifier {studyIdentifier} does not contain any persons.")
-                        investigation
-                | None -> 
-                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
-                    investigation
             | None -> 
                 log.Error("The investigation does not contain any studies.")
                 investigation
+            | Some studies -> 
+                match API.Study.tryGetByIdentifier studyIdentifier studies with
+                | None -> 
+                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
+                    investigation
+                | Some study -> 
+                    match study.Contacts with
+                    | None -> 
+                        log.Error($"The study with the identifier {studyIdentifier} does not contain any persons.")
+                        investigation
+                    | Some persons -> 
+                        match API.Person.tryGetByFullName firstName midInitials lastName persons with
+                        | None ->
+                            log.Error($"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}.")
+                            investigation
+                        | Some person -> 
+                            match oldStudyPerson with
+                            | None -> ()
+                            | Some osp -> if osp <> person then $"Person {firstName} {midInitials} {lastName} differs between Investigation file and Study file."
+                            API.Study.updateByIdentifier API.Update.UpdateAll newStudy studies
+                            |> API.Investigation.setStudies investigation
             |> Investigation.toFile investigationFilePath
 
         /// Registers a person in the ARC investigation study with the given person metadata contained in personArgs.
@@ -988,8 +991,14 @@ module StudyAPI =
 
             // write into Investigation file
             match investigation.Studies with
+            | None -> 
+                log.Error("The investigation does not contain any studies.")
+                investigation
             | Some studies -> 
                 match API.Study.tryGetByIdentifier studyIdentifier studies with
+                | None -> 
+                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
+                    investigation
                 | Some study -> 
                     match study.Publications with
                     | Some publications -> 
@@ -1020,15 +1029,7 @@ module StudyAPI =
                             study
                     |> fun s -> API.Study.updateByIdentifier API.Update.UpdateAll s studies
                     |> API.Investigation.setStudies investigation
-                | None -> 
-                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
-                    investigation
-            | None -> 
-                log.Error("The investigation does not contain any studies.")
-                investigation
             |> Investigation.toFile investigationFilePath
-
-            let studyIdentifier = getFieldValueByName "StudyIdentifier" publicationArgs
 
             let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
 
@@ -1086,36 +1087,66 @@ module StudyAPI =
             let investigationFilePath = IsaModelConfiguration.tryGetInvestigationFilePath arcConfiguration |> Option.get
             
             let investigation = Investigation.fromFile investigationFilePath
-            
-            match investigation.Studies with
-            | Some studies -> 
-                match API.Study.tryGetByIdentifier studyIdentifier studies with
-                | Some study -> 
-                    match study.Publications with
-                    | Some publications -> 
-                        // TODO : Remove the "Some" when the
-                        match API.Publication.tryGetByDoi doi publications with
-                        | Some publication ->
+
+            let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
+
+            let oldStudy = StudyFile.Study.fromFile studyFilepath
+
+            log.Info "Write into study file"
+
+            // define new study and write into Study file
+            let oldStudyPublication, newStudy =
+                match oldStudy.Publications with
+                | None -> 
+                    log.Error($"The study with the identifier {studyIdentifier} does not contain any publications.")
+                    None, oldStudy
+                | Some publications ->
+                    match API.Publication.tryGetByDoi doi publications with
+                    | None -> 
+                        log.Error($"Publication with the DOI {doi} does not exist in the Study with the identifier {studyIdentifier}.")
+                        None, oldStudy
+                    | Some publication ->
+                        let newStudy = 
                             ArgumentProcessing.Prompt.createIsaItemQuery editor
                                 (List.singleton >> Publications.toRows None) 
                                 (Publications.fromRows None 1 >> fun (_,_,_,items) -> items.Head) 
                                 publication
                             |> fun p -> API.Publication.updateBy ((=) publication) API.Update.UpdateAll p publications
-                            |> API.Study.setPublications study
-                            |> fun s -> API.Study.updateByIdentifier API.Update.UpdateAll s studies
-                            |> API.Investigation.setStudies investigation
-                        | None ->
-                            log.Error($"Publication with the DOI {doi} does not exist in the study with the identifier {studyIdentifier}.")
-                            investigation
-                    | None -> 
-                        log.Error($"The study with the identifier {studyIdentifier} does not contain any publications.")
-                        investigation
-                | None -> 
-                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
-                    investigation
+                            |> API.Study.setPublications oldStudy
+                        let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                        try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
+                        finally Spreadsheet.close oldStudyFile
+                        Some publication, newStudy
+            
+            log.Info "Write into Investigation file"
+
+            // write into Investigation file
+            match investigation.Studies with
             | None -> 
                 log.Error("The investigation does not contain any studies.")
                 investigation
+            | Some studies -> 
+                match API.Study.tryGetByIdentifier studyIdentifier studies with
+                | None -> 
+                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
+                    investigation
+                | Some study -> 
+                    match study.Publications with
+                    | None -> 
+                        log.Error($"The study with the identifier {studyIdentifier} does not contain any publications.")
+                        investigation
+                    | Some publications -> 
+                        // TODO : Remove the "Some" when the
+                        match API.Publication.tryGetByDoi doi publications with
+                        | None ->
+                            log.Error($"Publication with the DOI {doi} does not exist in the study with the identifier {studyIdentifier}.")
+                            investigation
+                        | Some publication ->
+                            match oldStudyPublication with
+                            | None -> ()
+                            | Some osp -> if osp <> publication then log.Warn $"Publication with the DOI {doi} differs between Investigation file and Study file"
+                            API.Study.updateByIdentifier API.Update.UpdateAll newStudy studies
+                            |> API.Investigation.setStudies investigation
             |> Investigation.toFile investigationFilePath
 
 
@@ -1210,11 +1241,22 @@ module StudyAPI =
             
             let investigation = Investigation.fromFile investigationFilePath
             
+            log.Info "Write into Investigation file"
+
             match investigation.Studies with
+            | None -> 
+                log.Error("The investigation does not contain any studies.")
+                investigation
             | Some studies -> 
                 match API.Study.tryGetByIdentifier studyIdentifier studies with
+                | None ->
+                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
+                    investigation
                 | Some study -> 
                     match study.Publications with
+                    | None -> 
+                        log.Error($"The study with the identifier {studyIdentifier} does not contain any publications.")
+                        investigation
                     | Some publications -> 
                         if API.Publication.existsByDoi doi publications then
                             API.Publication.removeByDoi doi publications
@@ -1224,15 +1266,6 @@ module StudyAPI =
                         else
                             log.Error($"Publication with the DOI {doi} does not exist in the study with the identifier {studyIdentifier}.")
                             investigation
-                    | None -> 
-                        log.Error($"The study with the identifier {studyIdentifier} does not contain any publications.")
-                        investigation
-                | None ->
-                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
-                    investigation
-            | None -> 
-                log.Error("The investigation does not contain any studies.")
-                investigation
             |> Investigation.toFile investigationFilePath
 
         /// Gets an existing publication by DOI from the ARC investigation study and prints its metadata.
