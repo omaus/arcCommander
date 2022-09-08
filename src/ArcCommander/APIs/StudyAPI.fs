@@ -503,75 +503,51 @@ module StudyAPI =
 
             // write into Study file
             match oldStudy.Contacts with
+            | None -> 
+                let msg = $"The study with the identifier {studyIdentifier} does not contain any persons."
+                if containsFlag "AddIfMissing" personArgs then
+                    log.Warn($"{msg}")
+                    log.Info("Registering person as AddIfMissing Flag was set.")
+                    let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                    try StudyFile.MetaData.overwriteWithStudyInfo "Study" ([person] |> API.Study.setContacts oldStudy) oldStudyFile
+                    finally Spreadsheet.close oldStudyFile
+                else 
+                    log.Error($"{msg}")
+                    log.Trace("AddIfMissing argument can be used to register person with the update command if it is missing.")
             | Some persons ->
                 if API.Person.existsByFullName firstName midInitials lastName persons then
-
                     let newStudy = 
                         API.Person.updateByFullName updateOption person persons
                         |> API.Study.setContacts oldStudy
-
                     let oldStudyFile = Spreadsheet.fromFile studyFilepath true
-
                     try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
-
                     finally Spreadsheet.close oldStudyFile
-
                 else 
-
                     let msg = $"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}."
                     if containsFlag "AddIfMissing" personArgs then
                         log.Warn($"{msg}")
                         log.Info("Registering person as AddIfMissing Flag was set.")
                         let oldStudyFile = Spreadsheet.fromFile studyFilepath true
-
                         try StudyFile.MetaData.overwriteWithStudyInfo "Study" (API.Person.add persons person |> API.Study.setContacts oldStudy) oldStudyFile
-
                         finally Spreadsheet.close oldStudyFile
-                        
                     else 
                         log.Error($"{msg}")
                         log.Trace("AddIfMissing argument can be used to register person with the update command if it is missing.")
-
-            | None -> 
-
-                let msg = $"The study with the identifier {studyIdentifier} does not contain any persons."
-                if containsFlag "AddIfMissing" personArgs then
-                    log.Warn($"{msg}")
-                    log.Info("Registering person as AddIfMissing Flag was set.")
-                    
-                    let oldStudyFile = Spreadsheet.fromFile studyFilepath true
-
-                    try StudyFile.MetaData.overwriteWithStudyInfo "Study" ([person] |> API.Study.setContacts oldStudy) oldStudyFile
-
-                    finally Spreadsheet.close oldStudyFile
-                else 
-                    log.Error($"{msg}")
-                    log.Trace("AddIfMissing argument can be used to register person with the update command if it is missing.")
-
+            
             log.Info "Writing into Investigation file"
             
             // write into Investigation file
             match investigation.Studies with
+            | None -> 
+                log.Error("The investigation does not contain any studies.")
+                investigation
             | Some studies -> 
                 match API.Study.tryGetByIdentifier studyIdentifier studies with
+                | None -> 
+                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
+                    investigation
                 | Some study -> 
                     match study.Contacts with
-                    | Some persons -> 
-                        if API.Person.existsByFullName firstName midInitials lastName persons then
-                            API.Person.updateByFullName updateOption person persons
-                            |> API.Study.setContacts study
-
-                        else
-                            let msg = $"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}."
-                            if containsFlag "AddIfMissing" personArgs then
-                                log.Warn($"{msg}")
-                                log.Info("Registering person as AddIfMissing Flag was set.")
-                                API.Person.add persons person
-                                |> API.Study.setContacts study
-                            else 
-                                log.Error($"{msg}")
-                                log.Trace("AddIfMissing argument can be used to register person with the update command if it is missing.")
-                                study
                     | None -> 
                         let msg = $"The study with the identifier {studyIdentifier} does not contain any persons."
                         if containsFlag "AddIfMissing" personArgs then
@@ -583,14 +559,23 @@ module StudyAPI =
                             log.Error($"{msg}")
                             log.Trace("AddIfMissing argument can be used to register person with the update command if it is missing.")
                             study
+                    | Some persons -> 
+                        if API.Person.existsByFullName firstName midInitials lastName persons then
+                            API.Person.updateByFullName updateOption person persons
+                            |> API.Study.setContacts study
+                        else
+                            let msg = $"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}."
+                            if containsFlag "AddIfMissing" personArgs then
+                                log.Warn($"{msg}")
+                                log.Info("Registering person as AddIfMissing Flag was set.")
+                                API.Person.add persons person
+                                |> API.Study.setContacts study
+                            else 
+                                log.Error($"{msg}")
+                                log.Trace("AddIfMissing argument can be used to register person with the update command if it is missing.")
+                                study
                     |> fun s -> API.Study.updateByIdentifier API.Update.UpdateAll s studies
                     |> API.Investigation.setStudies investigation
-                | None -> 
-                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
-                    investigation
-            | None -> 
-                log.Error("The investigation does not contain any studies.")
-                investigation
             |> Investigation.toFile investigationFilePath
         
         /// Opens an existing person by fullname (LastName, FirstName, MidInitials) in the ARC investigation study with the text editor set in globalArgs.
@@ -620,13 +605,16 @@ module StudyAPI =
 
             // define new study and write into Study file
             let newStudy =
-
                 match oldStudy.Contacts with
+                | None -> 
+                    log.Error($"The study with the identifier {studyIdentifier} does not contain any persons.")
+                    oldStudy
                 | Some persons ->
-                
                     match API.Person.tryGetByFullName firstName midInitials lastName persons with
+                    | None -> 
+                        log.Error($"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}.")
+                        oldStudy
                     | Some person ->
-
                         let newStudy = 
                             ArgumentProcessing.Prompt.createIsaItemQuery editor
                                 (List.singleton >> Contacts.toRows None) 
@@ -634,26 +622,10 @@ module StudyAPI =
                                 person
                             |> fun p -> API.Person.updateBy ((=) person) API.Update.UpdateAll p persons
                             |> API.Study.setContacts oldStudy
-
                         let oldStudyFile = Spreadsheet.fromFile studyFilepath true
-
                         try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
-
                         finally Spreadsheet.close oldStudyFile
-
                         newStudy
-
-                    | None -> 
-
-                        log.Error($"Person with the name {firstName} {midInitials} {lastName} does not exist in the study with the identifier {studyIdentifier}.")
-
-                        oldStudy
-
-                | None -> 
-                        
-                        log.Error($"The study with the identifier {studyIdentifier} does not contain any persons.")
-
-                        oldStudy
 
             log.Info "Writing into Investigation file"
             
@@ -1012,6 +984,9 @@ module StudyAPI =
 
             let studyIdentifier = getFieldValueByName "StudyIdentifier" publicationArgs
 
+            log.Info "Write into Investigation file"
+
+            // write into Investigation file
             match investigation.Studies with
             | Some studies -> 
                 match API.Study.tryGetByIdentifier studyIdentifier studies with
@@ -1052,6 +1027,48 @@ module StudyAPI =
                 log.Error("The investigation does not contain any studies.")
                 investigation
             |> Investigation.toFile investigationFilePath
+
+            let studyIdentifier = getFieldValueByName "StudyIdentifier" publicationArgs
+
+            let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
+
+            let oldStudy = StudyFile.Study.fromFile studyFilepath
+
+            log.Info "Write into Study file"
+
+            // write into Study file
+            match oldStudy.Publications with
+            | None -> 
+                let msg = $"The study with the identifier {studyIdentifier} does not contain any publications."
+                if containsFlag "AddIfMissing" publicationArgs then
+                    log.Warn($"{msg}")
+                    log.Info("Registering publication as AddIfMissing Flag was set.")
+                    let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                    try StudyFile.MetaData.overwriteWithStudyInfo "Study" ([publication] |> API.Study.setPublications oldStudy) oldStudyFile
+                    finally Spreadsheet.close oldStudyFile
+                else 
+                    log.Error($"{msg}")
+                    log.Trace("AddIfMissing argument can be used to register publication with the update command if it is missing.")
+            | Some publications ->
+                if API.Publication.existsByDoi doi publications then
+                    let newStudy = 
+                        API.Publication.updateByDOI updateOption publication publications
+                        |> API.Study.setPublications oldStudy
+                    let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                    try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
+                    finally Spreadsheet.close oldStudyFile
+                else 
+                    let msg = $"Publication with the DOI {doi} does not exist in the study with the identifier {studyIdentifier}."
+                    if containsFlag "AddIfMissing" publicationArgs then
+                        log.Warn($"{msg}")
+                        log.Info("Registering publication as AddIfMissing Flag was set.")
+                        let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                        try StudyFile.MetaData.overwriteWithStudyInfo "Study" (API.Publication.add publications publication |> API.Study.setPublications oldStudy) oldStudyFile
+                        finally Spreadsheet.close oldStudyFile
+                    else 
+                        log.Error($"{msg}")
+                        log.Trace("AddIfMissing argument can be used to register publication with the update command if it is missing.")
+            
         
         /// Opens an existing publication by DOI in the ARC investigation study with the text editor set in globalArgs.
         let edit (arcConfiguration : ArcConfiguration) (publicationArgs : Map<string,Argument>) =
@@ -1102,7 +1119,7 @@ module StudyAPI =
             |> Investigation.toFile investigationFilePath
 
 
-        /// Registers a publication in the ARC investigation study with the given publication metadata contained in personArgs.
+        /// Registers a publication in the ARC investigation study with the given publication metadata contained in publicationArgs.
         let register (arcConfiguration : ArcConfiguration) (publicationArgs : Map<string,Argument>) =
 
             let log = Logging.createLogger "StudyPublicationsRegisterLog"
@@ -1128,6 +1145,9 @@ module StudyAPI =
             
             let investigation = Investigation.fromFile investigationFilePath
 
+            log.Info "Write into Investigation file"
+
+            // write into Investigation file
             match investigation.Studies with
             | Some studies -> 
                 match API.Study.tryGetByIdentifier studyIdentifier studies with
@@ -1151,6 +1171,29 @@ module StudyAPI =
                 log.Error("The investigation does not contain any studies.")
                 investigation
             |> Investigation.toFile investigationFilePath
+
+            let studyIdentifier = getFieldValueByName "StudyIdentifier" publicationArgs
+
+            let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
+
+            let oldStudy = StudyFile.Study.fromFile studyFilepath
+
+            log.Info "Write into Study file"
+
+            // write into Study file
+            match oldStudy.Publications with
+            | None -> 
+                let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                try StudyFile.MetaData.overwriteWithStudyInfo "Study" ([publication] |> API.Study.setPublications oldStudy) oldStudyFile
+                finally Spreadsheet.close oldStudyFile
+            | Some publications ->
+                let newStudy = 
+                    API.Publication.add publications publication
+                    |> API.Study.setPublications oldStudy
+                let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
+                finally Spreadsheet.close oldStudyFile
+                
 
         /// Opens an existing publication by DOI in the ARC investigation study with the text editor set in globalArgs.
         let unregister (arcConfiguration : ArcConfiguration) (publicationArgs : Map<string,Argument>) =
