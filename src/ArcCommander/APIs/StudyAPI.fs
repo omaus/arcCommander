@@ -1407,7 +1407,7 @@ module StudyAPI =
             let name = getFieldValueByName "DesignType" designArgs
 
             let design = 
-                 DesignDescriptors.fromString
+                 OntologyAnnotation.fromStringWithComments
                      name
                      (getFieldValueByName  "TypeTermAccessionNumber"    designArgs)
                      (getFieldValueByName  "TypeTermSourceREF"          designArgs)
@@ -1519,7 +1519,7 @@ module StudyAPI =
             let name = getFieldValueByName "DesignType" designArgs
 
             let design = 
-                DesignDescriptors.fromString
+                OntologyAnnotation.fromStringWithComments
                     name
                     (getFieldValueByName  "TypeTermAccessionNumber"    designArgs)
                     (getFieldValueByName  "TypeTermSourceREF"          designArgs)
