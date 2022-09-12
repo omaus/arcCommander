@@ -1402,7 +1402,7 @@ module StudyAPI =
             
             log.Info("Start Design Update")
 
-            let updateOption = if containsFlag "ReplaceWithEmptyValues" designArgs then API.Update.UpdateAll else API.Update.UpdateByExisting            
+            let updateOption = if containsFlag "ReplaceWithEmptyValues" designArgs then API.Update.UpdateAll else API.Update.UpdateByExisting
 
             let name = getFieldValueByName "DesignType" designArgs
 
@@ -1420,14 +1420,25 @@ module StudyAPI =
 
             let studyIdentifier = getFieldValueByName "StudyIdentifier" designArgs
 
+            log.Info "Write into Investigation file"
+
+            // write into Investigation file
             match investigation.Studies with
+            | None -> 
+                log.Error("The investigation does not contain any studies.")
+                investigation
             | Some studies -> 
                 match API.Study.tryGetByIdentifier studyIdentifier studies with
+                | None -> 
+                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
+                    investigation
                 | Some study -> 
                     match study.StudyDesignDescriptors with
                     | Some designs -> 
                         if API.OntologyAnnotation.existsByName design.Name.Value designs then
-                            API.OntologyAnnotation.updateByName updateOption design designs
+                            printfn "got existsByName"
+                            //API.OntologyAnnotation.updateByName updateOption design designs
+                            API.OntologyAnnotation.updateByName API.Update.UpdateAll design designs
                             |> API.Study.setDescriptors study
                         else
                             let msg = $"Design with the name {name} does not exist in the study with the identifier {studyIdentifier}."
@@ -1453,13 +1464,46 @@ module StudyAPI =
                             study
                     |> fun s -> API.Study.updateByIdentifier API.Update.UpdateAll s studies
                     |> API.Investigation.setStudies investigation
-                | None -> 
-                    log.Error($"Study with the identifier {studyIdentifier} does not exist in the investigation file.")
-                    investigation
-            | None -> 
-                log.Error("The investigation does not contain any studies.")
-                investigation
             |> Investigation.toFile investigationFilePath
+
+            let studyFilepath = IsaModelConfiguration.getStudyFilePath studyIdentifier arcConfiguration
+
+            let oldStudy = StudyFile.Study.fromFile studyFilepath
+
+            log.Info "Write into Study file"
+
+            // write into Study file
+            match oldStudy.StudyDesignDescriptors with
+            | None -> 
+                let msg = $"The study with the identifier {studyIdentifier} does not contain any designs."
+                if containsFlag "AddIfMissing" designArgs then
+                    log.Warn($"{msg}")
+                    log.Info("Registering design as AddIfMissing Flag was set.")
+                    let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                    try StudyFile.MetaData.overwriteWithStudyInfo "Study" ([design] |> API.Study.setDescriptors oldStudy) oldStudyFile
+                    finally Spreadsheet.close oldStudyFile
+                else 
+                    log.Error($"{msg}")
+                    log.Trace("AddIfMissing argument can be used to register design with the update command if it is missing.")
+            | Some designs ->
+                if API.OntologyAnnotation.existsByName (AnnotationValue.fromString name) designs then
+                    let newStudy = 
+                        API.OntologyAnnotation.updateByName updateOption design designs
+                        |> API.Study.setDescriptors oldStudy
+                    let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                    try StudyFile.MetaData.overwriteWithStudyInfo "Study" newStudy oldStudyFile
+                    finally Spreadsheet.close oldStudyFile
+                else 
+                    let msg = $"Publication with the name {name} does not exist in the Study with the identifier {studyIdentifier}."
+                    if containsFlag "AddIfMissing" designArgs then
+                        log.Warn($"{msg}")
+                        log.Info("Registering design as AddIfMissing Flag was set.")
+                        let oldStudyFile = Spreadsheet.fromFile studyFilepath true
+                        try StudyFile.MetaData.overwriteWithStudyInfo "Study" (API.OntologyAnnotation.add designs design |> API.Study.setDescriptors oldStudy) oldStudyFile
+                        finally Spreadsheet.close oldStudyFile
+                    else 
+                        log.Error($"{msg}")
+                        log.Trace("AddIfMissing argument can be used to register design with the update command if it is missing.")
         
         /// Opens an existing design by design type in the ARC investigation study with the text editor set in globalArgs.
         let edit (arcConfiguration : ArcConfiguration) (designArgs : Map<string,Argument>) =
