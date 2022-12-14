@@ -77,3 +77,15 @@ type ArcGetArgs =
             | RepositoryAddress _ -> "Git remote address from which to pull the ARC"
             | BranchName        _ -> "Branch of the remote address which should be used. If none is given, uses \"main\""
             | NoLFS             _ -> "Does download only the pointers of LFS files, not the file content itself. Ideal for when you're only interested in the experimental metadata, not the data itself."
+
+type ArcServerArgs =
+    | [<Unique>][<AltCommandLine("-p")>] Port           of port_address : string
+    //| [<Unique>][<AltCommandLine("-b")>] BranchName         of branch_name:string
+    //| [<Unique>][<AltCommandLine("-n")>] NoLFS
+
+    interface IArgParserTemplate with
+        member this.Usage =
+            match this with
+            | Port              _ -> "<insert description here>"
+            //| BranchName        _ -> "Branch of the remote address which should be used. If none is given, uses \"main\""
+            //| NoLFS             _ -> "Does download only the pointers of LFS files, not the file content itself. Ideal for when you're only interested in the experimental metadata, not the data itself."
