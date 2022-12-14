@@ -36,6 +36,7 @@ module Server =
     let webApp =
         // TO DO: establish versioning for APIs: e.g. `localhost/api/v1/ping`, "v1" should be the ArcCommander's version
         choose [
+            route "/ping"   >=> text "pong"
             GET >=> choose [
                 route "/version" >=> versionHandler
                 route "/ping" >=> text "pong"
@@ -44,16 +45,16 @@ module Server =
                 route "/ping" >=> numberHandler
             ]
             subRoute "/v1" (
-                subRoute "/arc" (
-                    choose [
+            subRoute "/arc" (
+                choose [
                         GET >=> route "/docs" >=> htmlView ArcApi.Docs.view
-                        POST >=> choose [
+                    POST >=> choose [
                             route "/get" >=> ArcAPIHandler.isaJsonToARCHandler
                             route "/init" >=> ArcAPIHandler.arcInitHandler
                             route "/import" >=> ArcAPIHandler.arcImportHandler
-                        ]
                     ]
-                )
+                ]
+            )
             )
         ]
 
