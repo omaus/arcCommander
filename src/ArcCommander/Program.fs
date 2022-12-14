@@ -228,6 +228,8 @@ let handleCommand arcConfiguration command =
 [<EntryPoint>]
 let main argv =
 
+    //Server.start argv
+
     try
         let parser = ArgumentParser.Create<ArcCommand>()
         
