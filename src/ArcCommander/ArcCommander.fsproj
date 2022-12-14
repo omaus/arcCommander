@@ -54,6 +54,7 @@
     <Compile Include="APIs\AssayAPI.fs" />
     <Compile Include="APIs\ArcAPI.fs" />
     <Compile Include="APIs\ExternalExecutables.fs" />
+    <Compile Include="Server.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   
