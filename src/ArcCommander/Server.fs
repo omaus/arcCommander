@@ -35,7 +35,7 @@ module Server =
                     POST >=> choose [
                         route "/get" >=> ArcAPIHandler.isaJsonToARCHandler
                         route "/init" >=> ArcAPIHandler.arcInitHandler
-                        route "/import" >=> ArcAPIHandler.arcInitHandler
+                        route "/import" >=> ArcAPIHandler.arcImportHandler
                     ]
                 ]
             )
