@@ -52,6 +52,7 @@ let arcInitHandler : HttpHandler =
 //    Alles : string
 //}
 
+/// Gets an ISA-JSON string via POST request and returns a byte array of a zipped archive of an ARC created from it.
 let arcImportHandler : HttpHandler =
     fun (next : HttpFunc) (ctx : HttpContext) ->
         task {
@@ -66,7 +67,11 @@ let arcImportHandler : HttpHandler =
 
             System.IO.Compression.ZipFile.CreateFromDirectory(tmpDir,tmpZip )
 
+            Directory.Delete(tmpDir, true)
+
             let byteArc : byte [] = File.ReadAllBytes tmpZip
+
+            File.Delete tmpZip
 
             return! ctx.WriteBytesAsync byteArc
         }
