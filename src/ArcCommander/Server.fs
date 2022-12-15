@@ -1,6 +1,5 @@
 ﻿namespace ArcCommander
 
-open System
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.Hosting
@@ -8,66 +7,35 @@ open Microsoft.Extensions.DependencyInjection
 open Giraffe
 open ArcCommander.ArgumentProcessing
 open Microsoft.AspNetCore.Http
-open System.IO
-open System.IO.Compression
 
 module Server =
 
-    let funFunction myInt = $"Your number is {myInt}!"
-
+    /// Test-API function
     let numberHandler : HttpHandler =
+        let funFunction myInt = $"Your number is {myInt}!"
         fun (next : HttpFunc) (ctx : HttpContext) ->
             task {
                 let! number = ctx.BindJsonAsync<int>()
-                //use __ = somethingToBeDisposedAtTheEndOfTheRequest
                 let nextNumber = funFunction number
-                //return! Successful.OK number next ctx
-                //return! Successful.OK nextNumber next ctx
-                return! json {| asdjkhjkasdh = nextNumber |} next ctx
+                // das machen wir so!
+                return! json {| ``is this your number?`` = nextNumber |} next ctx
             }
 
-    let isaJsonToARCHandler : HttpHandler =
-        fun (next : HttpFunc) (ctx : HttpContext) ->
-            // modified from: https://stackoverflow.com/questions/17232414/creating-a-zip-archive-in-memory-using-system-io-compression
-            task {
-                let isaJson = ctx.Request.Body
-                let ms = new MemoryStream()
-                let! _ = isaJson.CopyToAsync(ms)
-                let isaJsonBA = ms.ToArray()
-
-                let getByteArray (fileName : string) (data : byte []) =
-                    try
-                        use ms = new MemoryStream()
-                        (
-                            use archive = new ZipArchive(ms, ZipArchiveMode.Create)
-                            let entry = archive.CreateEntry(fileName)
-                            use entryStream = entry.Open()
-                            use bw = new BinaryWriter(entryStream)
-                            bw.Write(data)
-                        )
-                        (ms.ToArray())
-                    with e ->
-                        failwithf "Cannot zip stream %s: %s" fileName e.Message
-                let res = getByteArray "arc.json" isaJsonBA
-                return! ctx.WriteBytesAsync res
-            }
-
-
+    /// Endpoints
     let webApp =
         choose [
-            route "/ping"   >=> text "pong"
             GET >=> choose [
-                route "/number" >=> text (string 42)
+                route "/ping" >=> text "pong"
             ]
             POST >=> choose [
-                route "/number" >=> numberHandler
+                route "/ping" >=> numberHandler
             ]
-            //route "/"       >=> htmlFile "/APIDocs/IArcAPI.html"
             subRoute "/arc" (
                 choose [
-                    route "/foo" >=> text "barzzzzzzz"
                     POST >=> choose [
-                        route "/get" >=> isaJsonToARCHandler
+                        route "/get" >=> ArcAPIHandler.isaJsonToARCHandler
+                        route "/init" >=> ArcAPIHandler.arcInitHandler
+                        route "/import" >=> ArcAPIHandler.arcInitHandler
                     ]
                 ]
             )
