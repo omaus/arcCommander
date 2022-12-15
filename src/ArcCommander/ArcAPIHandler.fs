@@ -48,16 +48,25 @@ let arcInitHandler : HttpHandler =
             return! json config next ctx
         }
 
+//type AlibiJson = {
+//    Alles : string
+//}
+
 let arcImportHandler : HttpHandler =
     fun (next : HttpFunc) (ctx : HttpContext) ->
         task {
             let! isaJsonString = ctx.BindJsonAsync<string>()
 
-            let tmpDir = Path.GetTempPath()
+            let tmpDir = Path.Combine(Path.GetTempPath(), "tmpArc")
+            let tmpZip = Path.Combine(Path.GetTempPath(), "tmpArc.zip")
 
-            //let arcFromIsaJson = 
-            
-            let byteArc : byte [] = [||]
+            ISADotNet.Json.Investigation.fromString isaJsonString
+            |> fun i -> {i with Remarks = []}
+            |> arcIO.NET.Arc.importFromInvestigation tmpDir
+
+            System.IO.Compression.ZipFile.CreateFromDirectory(tmpDir,tmpZip )
+
+            let byteArc : byte [] = File.ReadAllBytes tmpZip
 
             return! ctx.WriteBytesAsync byteArc
         }
