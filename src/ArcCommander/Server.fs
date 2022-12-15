@@ -36,7 +36,6 @@ module Server =
     let webApp =
         // TO DO: establish versioning for APIs: e.g. `localhost/api/v1/ping`, "v1" should be the ArcCommander's version
         choose [
-            route "/ping"   >=> text "pong"
             GET >=> choose [
                 route "/version" >=> versionHandler
                 route "/ping" >=> text "pong"
