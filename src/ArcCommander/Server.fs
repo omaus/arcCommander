@@ -43,10 +43,25 @@ module Server =
 
     let configureApp (app : IApplicationBuilder) =
         // Add Giraffe to the ASP.NET Core pipeline
+        app.UseCors() |> ignore
         app.UseGiraffe webApp
 
     let configureServices (services : IServiceCollection) =
         // Add Giraffe dependencies
+        let corsPolicy = 
+            Microsoft.AspNetCore.Cors.Infrastructure
+                .CorsPolicyBuilder()
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowAnyOrigin()
+                .Build()
+        services.AddCors(
+            fun options -> 
+                options.AddPolicy(
+                    name = "_myAllowSpecificOrigins", 
+                    policy = corsPolicy
+                )
+        ) |> ignore
         services.AddGiraffe() |> ignore
 
     let start arcConfiguration (arcServerArgs : Map<string,Argument>) =
