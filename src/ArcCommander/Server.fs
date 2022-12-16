@@ -76,7 +76,6 @@ module Server =
             opt
         ) |> ignore
         // Add Giraffe to the ASP.NET Core pipeline
-        app.UseCors(corsPolicyName) |> ignore
         app.UseGiraffe webApp
 
     let configureServices (services : IServiceCollection) =
