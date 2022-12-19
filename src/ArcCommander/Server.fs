@@ -7,6 +7,7 @@ open Microsoft.Extensions.DependencyInjection
 open Giraffe
 open ArcCommander.ArgumentProcessing
 open Microsoft.AspNetCore.Http
+open Microsoft.AspNetCore.Cors.Infrastructure
 
 module Server =
 
@@ -21,9 +22,21 @@ module Server =
                 return! json {| ``is this your number?`` = nextNumber |} next ctx
             }
 
+    /// API function for checking the application's version.
+    let versionHandler : HttpHandler =
+        fun (next : HttpFunc) (ctx : HttpContext) ->
+            task {
+                let ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version
+                return! json ver next ctx
+            }
+
     /// Endpoints
     let webApp =
+        // TO DO: establish versioning for APIs: e.g. `localhost/api/v1/ping`, "v1" should be the ArcCommander's version
         choose [
+            GET >=> choose [
+                route "/version" >=> versionHandler
+            ]
             GET >=> choose [
                 route "/ping" >=> text "pong"
             ]
@@ -41,27 +54,24 @@ module Server =
             )
         ]
 
+    let corsPolicyName = "_myAllowSpecificOrigins"
+
+    let corsPolicyConfig =
+        fun (b : CorsPolicyBuilder) ->
+            b
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowAnyOrigin()
+            |> ignore
+
     let configureApp (app : IApplicationBuilder) =
         // Add Giraffe to the ASP.NET Core pipeline
-        app.UseCors() |> ignore
+        app.UseCors(corsPolicyName) |> ignore
         app.UseGiraffe webApp
 
     let configureServices (services : IServiceCollection) =
         // Add Giraffe dependencies
-        let corsPolicy = 
-            Microsoft.AspNetCore.Cors.Infrastructure
-                .CorsPolicyBuilder()
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowAnyOrigin()
-                .Build()
-        services.AddCors(
-            fun options -> 
-                options.AddPolicy(
-                    name = "_myAllowSpecificOrigins", 
-                    policy = corsPolicy
-                )
-        ) |> ignore
+        services.AddCors(fun options -> options.AddPolicy(corsPolicyName, corsPolicyConfig)) |> ignore
         services.AddGiraffe() |> ignore
 
     let start arcConfiguration (arcServerArgs : Map<string,Argument>) =
