@@ -12,6 +12,7 @@ open ISADotNet.XLSX
 /// ArcCommander API functions that get executed by top level subcommand verbs.
 module ArcAPI = 
 
+    /// Logs the current version of the application.
     let version _ =
         
         let log = Logging.createLogger "ArcVersionLog"
