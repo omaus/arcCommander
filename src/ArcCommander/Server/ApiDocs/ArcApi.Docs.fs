@@ -1,3 +1,3 @@
 ﻿module ArcApi.Docs
 
-let view = Docs.baseViews "IArcAPI.yaml"
+let view = Docs.baseViews "IArcAPI_v1.yaml"
