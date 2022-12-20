@@ -180,7 +180,7 @@ build.sh -t prerelease
 
 ### Update Release Notes
     
-Every developer with writing rights shall update the Release Notes after every PR merge:
+Every developer with writing rights MUST update the Release Notes after every PR merge:
     
 #### via dotnet cli
     
