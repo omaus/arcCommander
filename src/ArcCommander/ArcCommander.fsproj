@@ -18,9 +18,12 @@
     <FsDocsLicenseLink>https://github.com/nfdi4plants/arcCommander/blob/developer/LICENSE</FsDocsLicenseLink>
     <FsDocsReleaseNotesLink>https://github.com/nfdi4plants/arcCommander/blob/developer/RELEASE_NOTES.md</FsDocsReleaseNotesLink>
     <AssemblyName>arc</AssemblyName>
-  </PropertyGroup>   
-  
-  <!--Compile-States-->
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Remove="Server\public\**" />
+  </ItemGroup>
+
+	<!--Compile-States-->
   <ItemGroup>
     <None Include="config_unix\config" CopyToOutputDirectory="PreserveNewest" />
     <None Include="config_win\config" CopyToOutputDirectory="PreserveNewest" />
@@ -54,11 +57,20 @@
     <Compile Include="APIs\AssayAPI.fs" />
     <Compile Include="APIs\ArcAPI.fs" />
     <Compile Include="APIs\ExternalExecutables.fs" />
+    <Compile Include="Server\ApiDocs\BaseView.Docs.fs" />
+    <Compile Include="Server\ApiDocs\ArcApi.Docs.fs" />
     <Compile Include="ArcAPIHandler.fs" />
     <Compile Include="Server.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-  
+
+	<!--This copies our static files for the server function to the location of the dll. Allowing us to access it.-->
+	<ItemGroup>
+		<Content Include="Server\WebRoot\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>	
+	
   <!--References-->
   <ItemGroup>
     <PackageReference Update="FSharp.Core" Version="7.0.0" />
