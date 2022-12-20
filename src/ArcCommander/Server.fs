@@ -28,7 +28,7 @@ module Server =
     let versionHandler : HttpHandler =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             task {
-                let ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version
+                let ver = System.AssemblyVersionInformation.AssemblyVersion
                 return! json ver next ctx
             }
 

@@ -57,6 +57,7 @@
     <Compile Include="APIs\AssayAPI.fs" />
     <Compile Include="APIs\ArcAPI.fs" />
     <Compile Include="APIs\ExternalExecutables.fs" />
+    <Compile Include="Server\Version.fs" />
     <Compile Include="Server\ArcAPIHandler.fs" />
     <Compile Include="Server\ApiDocs\BaseView.Docs.fs" />
     <Compile Include="Server\ApiDocs\ArcApi.Docs.fs" />
