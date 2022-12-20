@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info:
+  version: 0.0.1
+  title: ARC Api
+  description: |-
+    ARC api docs description
+
+    email: info@nfdi4plants.org
+servers:
+  - url: "http://localhost:5000"
+    description: "Local Test"
+paths:
+  /ping:
+    get:
+      summary: "Test function to verify client server connection."
+      description: "This function is only used for testing connection. If client has connection to server this request will return `pong`."
+      operationId: GET_ping
+      responses:
+        200:
+          description: "OK"
+          content:
+            text/plain:
+              schema:
+                type: string
+              examples:
+                Only_Result: 
+                  summary: This api must always return "pong".
+                  value: "pong"
