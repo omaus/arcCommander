@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   version: 0.0.1
-  title: ARC Api
+  title: ARC Api v1
   description: |-
     ARC api docs description
 
