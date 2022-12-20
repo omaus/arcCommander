@@ -26,3 +26,53 @@ paths:
                 Only_Result: 
                   summary: This api must always return "pong".
                   value: "pong"
+    post:
+      summary: "Test function to verify client server connection."
+      description: ""
+      operationId: POST_ping
+      requestBody:
+        description: "Test POST API request."
+        content:
+          application/json:
+            schema:
+              type: integer
+            examples:
+              the_answer:
+                summary: any number
+                value: 42
+      responses:
+        200:
+          description: "OK"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  "is this your number?": 
+                    type: string
+              examples:
+                the_answer: 
+                  value:
+                    "is this your number?": "Your number is 42!"
+  /v1/arc/get:
+    post:
+      summary: ""
+      description: |
+        lol
+      operationId: POST_v1/arc/get
+      requestBody:
+        description: |
+          text
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: byte
+      responses:
+        200:
+          description: "OK"
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: byte
