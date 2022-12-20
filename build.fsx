@@ -473,12 +473,22 @@ module ReleaseNoteTasks =
         AssemblyVersion.create ProjectInfo.gitName
     }
 
+
     let updateReleaseNotes = BuildTask.createFn "ReleaseNotes" [] (fun config ->
         Release.exists()
 
         Release.update(ProjectInfo.gitOwner, ProjectInfo.gitName, config)
 
         let release = ReleaseNotes.load "RELEASE_NOTES.md"
+    
+        Fake.DotNet.AssemblyInfoFile.createFSharp "src/ArcCommander/Server/Version.fs"
+            [   Fake.DotNet.AssemblyInfo.Title "ArcCommander"
+                Fake.DotNet.AssemblyInfo.Version release.AssemblyVersion
+                Fake.DotNet.AssemblyInfo.Metadata (
+                    "ReleaseDate", 
+                    release.Date |> Option.defaultValue System.DateTime.Today |> fun d -> d.ToShortDateString()
+                )
+            ]
 
         let stableVersion = SemVer.parse release.NugetVersion
 
