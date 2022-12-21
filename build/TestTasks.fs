@@ -6,15 +6,17 @@ open BlackFox.Fake
 
 open ProjectInfo
 open BasicTasks
+open Helpers
 
 let runTests = BuildTask.create "RunTests" [clean; cleanTestResults; build; copyBinaries] {
-    let standardParams = Fake.DotNet.MSBuild.CliArguments.Create ()
-    Fake.DotNet.DotNet.test(fun testParams ->
-        {
-            testParams with
-                Logger = Some "console;verbosity=detailed"
-                Configuration = DotNet.BuildConfiguration.fromString configuration
-                NoBuild = true
-        }
-    ) testProject
+    run dotnet "watch run --project tests\ArcCommander.Tests.NetCore" ""
+    //let standardParams = Fake.DotNet.MSBuild.CliArguments.Create ()
+    //Fake.DotNet.DotNet.test(fun testParams ->
+    //    {
+    //        testParams with
+    //            Logger = Some "console;verbosity=detailed"
+    //            Configuration = DotNet.BuildConfiguration.fromString configuration
+    //            NoBuild = true
+    //    }
+    //) testProject
 }

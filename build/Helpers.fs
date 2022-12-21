@@ -116,7 +116,7 @@ let runOrDefault args =
         | [| target |] -> Target.runOrDefault target
         | arr when args.Length > 1 ->
             Target.run 0 (Array.head arr) ( Array.tail arr |> List.ofArray )
-        | _ -> Target.runOrDefault "Ignore" 
+        | _ -> Target.runOrDefault "Build" 
         0
     with e ->
         printfn "%A" e
