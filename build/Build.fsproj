@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="Dockerfile.publish" />
+    <None Include="Dockerfile.publish.dockerignore" />
     <Compile Include="Helpers.fs" />
     <Compile Include="ProjectInfo.fs" />
     <Compile Include="BasicTasks.fs" />
@@ -18,6 +20,8 @@
     <Compile Include="DockerTasks.fs" />
     <Compile Include="Build.fs" />
   </ItemGroup>
+
+  <ItemGroup />
 
   <ItemGroup>
 	<PackageReference Include="BlackFox.Fake.BuildTask" Version="0.1.3" />
