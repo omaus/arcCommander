@@ -28,7 +28,7 @@ paths:
                   value: "pong"
     post:
       summary: "Test function to verify client server connection."
-      description: ""
+      description: "This function is only used for testing connection. If client has connection to server and requests an integer, this request will return it."
       operationId: POST_ping
       requestBody:
         description: "Test POST API request."
@@ -54,15 +54,20 @@ paths:
                 the_answer: 
                   value:
                     "is this your number?": "Your number is 42!"
+
   /v1/arc/get:
     post:
-      summary: ""
+      summary: "Takes an ISA-JSON as byte stream and returns a byte stream, consisting of the corresponding ARC created from it as a ZIP archive."
       description: |
-        lol
+        Give an ISA-JSON as byte stream via Http Request.
+
+        The ArcCommander server as backend will process and create the resulting ARC out of it. The ARC gets compressed as a ZIP archive.
+
+        This ZIP archive is then returned as a byte stream again.
       operationId: POST_v1/arc/get
       requestBody:
         description: |
-          text
+          A JSON file, consisting of ISA, in the form of a byte stream.
         content:
           "*/*":
             schema:
