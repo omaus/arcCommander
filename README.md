@@ -143,19 +143,9 @@ Examples:
     
 - `.\build.cmd publishBinaries<OS>` (clean artifacts, build projects, copy binaries to /bin, **publish project as single-file executable** depending on `<OS>` which can be either `Win`, `Mac`, or `Linux`)
 
+- run `.\build.cmd releaseNotes semver:<numberID>` to update the Release Notes with commits not added yet (Look [here](https://github.com/Freymaurer/Fake.Extensions.Release#releaseupdate) for the correct syntax).
+
 For Linux use `build.sh` with the same syntax.
-
-### Update Release Notes
-    
-Every developer with writing rights MUST update the Release Notes after every PR merge:
-    
-#### via dotnet cli
-    
-- run `dotnet tool restore` once to restore local tools needed in the buildchain (if not done already)
-
-- run `dotnet fake build -t releaseNotes` to update the Release Notes with commits not added yet **to the CURRENT version release**
-    
-- run `dotnet fake build -t releaseNotes semver:<numberID>` to update the Release Notes with commits not added yet **to a NEW version release**; the new version depends on the `<numberID` used: `major` for an increase of the major number (e.g. 0.0.0 -> 1.0.0), `minor` for an increase of the minor number (e.g. 0.0.0 -> 0.1.0), `patch` for an increase of the patch number (e.g. 0.0.0 -> 0.0.1)
 
 ### Release on github
     
