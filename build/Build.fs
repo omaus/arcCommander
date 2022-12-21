@@ -1,8 +1,6 @@
 ﻿open BlackFox.Fake
 open Helpers
 
-initializeContext()
-
 open BasicTasks
 open TestTasks
 open PackageTasks
@@ -10,6 +8,9 @@ open ReleaseTasks
 open ReleaseNoteTasks
 open DockerTasks
 
+// Could also use existing build project template found here: https://github.com/kMutagene/BuildProject
+
+// Make targets accessible
 ReleaseNoteTasks.updateReleaseNotes |> ignore
 DockerTasks.dockerPublish |> ignore
 
