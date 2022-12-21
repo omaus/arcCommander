@@ -8,6 +8,8 @@ open ReleaseTasks
 open ReleaseNoteTasks
 open DockerTasks
 
+initializeContext()
+
 // Could also use existing build project template found here: https://github.com/kMutagene/BuildProject
 
 // Make targets accessible
