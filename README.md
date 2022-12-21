@@ -130,54 +130,21 @@ If you only want to simply use the ArcCommander, head over to [Install and start
     
 ### Build
 
-Check the [build.fsx file](https://github.com/nfdi4plants/arcCommander/blob/developer/build.fsx) to take a look at the build targets. Here are some examples:
+Check the Build.fsproj to take a look at the build targets. Here are some examples:
 
 #### via dotnet cli
 
-- run `dotnet tool restore` once to restore local tools needed in the buildchain
+- run `.\build.cmd <YourBuildTargetHere>` to run the buildchain of `<YourBuildTargetHere>`
 
-- run `dotnet fake build -t <YourBuildTargetHere>` to run the buildchain of `<YourBuildTargetHere>`
+Examples:
 
-    Examples:
+- `.\build.cmd` run the default buildchain (clean artifacts, build projects, copy binaries to /bin)
 
-    - `dotnet fake build` run the default buildchain (clean artifacts, build projects, copy binaries to /bin)
-
-    - `dotnet fake build -t runTests` (clean artifacts, build projects, copy binaries to /bin, **run unit tests**)
+- `.\build.cmd runTests` (clean artifacts, build projects, copy binaries to /bin, **run unit tests**)
     
-    - `dotnet fake build -t publishBinaries<OS>` (clean artifacts, build projects, copy binaries to /bin, **publish project as single-file executable** depending on `<OS>` which can be either `Win`, `Mac`, or `Linux`)
+- `.\build.cmd publishBinaries<OS>` (clean artifacts, build projects, copy binaries to /bin, **publish project as single-file executable** depending on `<OS>` which can be either `Win`, `Mac`, or `Linux`)
 
-#### using the shell scripts
-
-```shell
-# Windows
-
-# Build only
-./build.cmd
-
-# Full release buildchain: build, test, pack, build the docs, push a git tag, publish the nuget package, release the docs
-./build.cmd -t release
-
-# The same for prerelease versions:
-./build.cmd -t prerelease
-    
-# Publish buildchain: build, publish for the respective OS
-./publishBinariesWin.cmd
-./publishBinariesMac.cmd
-./publishBinariesLnx.cmd
-
-
-# Linux/mac
-
-# Build only
-build.sh
-
-# Full release buildchain: build, test, pack, build the docs, push a git tag, publsih the nuget package, release the docs
-build.sh -t release
-
-# The same for prerelease versions:
-build.sh -t prerelease
-
-```
+For Linux use `build.sh` with the same syntax.
 
 ### Update Release Notes
     
