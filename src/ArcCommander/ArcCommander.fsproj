@@ -74,7 +74,6 @@
 	
   <!--References-->
   <ItemGroup>
-    <PackageReference Update="FSharp.Core" Version="7.0.0" />
     <PackageReference Include="arcIO.NET" Version="0.0.4" />
     <PackageReference Include="Argu" Version="6.1.1" />
     <PackageReference Include="Fake.IO.FileSystem" Version="5.20.4" />
