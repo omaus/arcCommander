@@ -4,8 +4,6 @@ open Fake.Core
 open Helpers
 open Fake.IO
 
-initializeContext()
-
 // run this here to make sure a RELEASE_NOTES.md exists, otherwise "let release = ReleaseNotes.load "RELEASE_NOTES.md" will fail.
 Fake.Extensions.Release.ReleaseNotes.ensure()
 
