@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   version: 0.0.1
-  title: ARC Api v1
+  title: ARC API v1
   description: |-
-    ARC api docs description
+    ARC API docs description
 
     email: info@nfdi4plants.org
 servers:
