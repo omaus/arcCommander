@@ -1,5 +1,4 @@
-﻿
-module ArcCommander.Tests.NetCore
+﻿module ArcCommander.Tests.NetCore
 
 open Expecto
 
