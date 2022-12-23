@@ -44,16 +44,16 @@ module Server =
                 route "/ping" >=> numberHandler
             ]
             subRoute "/v1" (
-            subRoute "/arc" (
-                choose [
+                subRoute "/arc" (
+                    choose [
                         GET >=> route "/docs" >=> htmlView ArcApi.Docs.view
-                    POST >=> choose [
+                        POST >=> choose [
                             route "/get" >=> ArcAPIHandler.isaJsonToARCHandler
                             route "/init" >=> ArcAPIHandler.arcInitHandler
                             route "/import" >=> ArcAPIHandler.arcImportHandler
+                        ]
                     ]
-                ]
-            )
+                )
             )
         ]
 
@@ -76,6 +76,7 @@ module Server =
             opt
         ) |> ignore
         // Add Giraffe to the ASP.NET Core pipeline
+        app.UseCors(corsPolicyName) |> ignore
         app.UseGiraffe webApp
 
     let configureServices (services : IServiceCollection) =
